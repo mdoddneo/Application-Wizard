@@ -1,0 +1,9 @@
+{
+  "name": "Application Wizard",
+  "description": "An interactive full-stack workspace where users can instantly prompt, generate, test, and manually refactor beautiful mobile responsive web apps inside simulated iOS and Android frames. Features draft vault storage and a shared community marketplace feed.",
+  "requestFramePermissions": [
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

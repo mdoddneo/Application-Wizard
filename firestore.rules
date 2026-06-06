@@ -1,0 +1,114 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Catch-All Deny Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Common helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // App document matches
+    match /apps/{appId} {
+      // Allow single document get publicly
+      allow get: if true;
+
+      // Allow queries if the app is published, or matches the creator (user or guest)
+      allow list: if (resource.data.published == true 
+                      || (isSignedIn() && resource.data.creatorId == request.auth.uid)
+                      || resource.data.creatorId.startsWith('guest_'));
+      
+      allow create: if isValidId(appId)
+        && isValidApp(incoming())
+        && (
+          (isSignedIn() && incoming().creatorId == request.auth.uid) ||
+          (!isSignedIn() && incoming().creatorId.startsWith('guest_'))
+        );
+        
+      allow update: if isValidApp(incoming())
+        && (
+          // Creator can edit/publish everything
+          (isSignedIn() && existing().creatorId == request.auth.uid && incoming().creatorId == existing().creatorId) ||
+          (!isSignedIn() && existing().creatorId.startsWith('guest_') && incoming().creatorId == existing().creatorId) ||
+          // Community can increment view counts or likes, or update details
+          (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'viewsCount', 'features', 'updatedAt', 'code', 'title', 'description']))
+        );
+        
+      allow delete: if (
+        (isSignedIn() && existing().creatorId == request.auth.uid) ||
+        (!isSignedIn() && existing().creatorId.startsWith('guest_'))
+      );
+
+      // Sub-collection matches representing user feedback
+      match /comments/{commentId} {
+        allow read: if true; // Review feeds are public
+        
+        allow create: if (isSignedIn() || !isSignedIn())
+          && isValidId(commentId)
+          && isValidComment(incoming())
+          && (
+            (isSignedIn() && incoming().userId == request.auth.uid) ||
+            (!isSignedIn() && incoming().userId.startsWith('guest_'))
+          );
+          
+        allow update: if isValidComment(incoming())
+          && (
+            (isSignedIn() && existing().userId == request.auth.uid && incoming().userId == existing().userId) ||
+            (!isSignedIn() && existing().userId.startsWith('guest_') && incoming().userId == existing().userId)
+          )
+          && incoming().diff(existing()).affectedKeys().hasOnly(['commentText']);
+          
+        allow delete: if (
+          (isSignedIn() && existing().userId == request.auth.uid) ||
+          (!isSignedIn() && existing().userId.startsWith('guest_')) ||
+          (isSignedIn() && get(/databases/$(database)/documents/apps/$(appId)).data.creatorId == request.auth.uid) ||
+          (!isSignedIn() && get(/databases/$(database)/documents/apps/$(appId)).data.creatorId.startsWith('guest_'))
+        );
+      }
+    }
+
+    // Validation Functions
+    function isValidApp(data) {
+      return data.keys().hasAll(['id', 'title', 'description', 'prompt', 'code', 'creatorId', 'published', 'createdAt', 'updatedAt'])
+        && data.keys().size() <= 16
+        && data.id is string && data.id.size() <= 128
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 200
+        && data.description is string && data.description.size() <= 1000
+        && data.prompt is string && data.prompt.size() <= 4000
+        && data.code is string && data.code.size() <= 1000000
+        && data.creatorId is string && data.creatorId.size() <= 128
+        && data.published is bool
+        && (!data.keys().hasAny(['category']) || (data.category is string && data.category.size() <= 100))
+        && (!data.keys().hasAny(['icon']) || (data.icon is string && data.icon.size() <= 100))
+        && (!data.keys().hasAny(['likesCount']) || (data.likesCount is int))
+        && (!data.keys().hasAny(['viewsCount']) || (data.viewsCount is int))
+        && (!data.keys().hasAny(['features']) || (data.features is list && data.features.size() <= 50))
+        && (!data.keys().hasAny(['platform']) || (data.platform is string && (data.platform == 'ios' || data.platform == 'android' || data.platform == 'cross-platform')));
+    }
+
+    function isValidComment(data) {
+      return data.keys().hasAll(['id', 'appId', 'userId', 'userEmail', 'commentText', 'createdAt'])
+        && data.keys().size() == 6
+        && data.id is string && data.id.size() <= 128
+        && data.appId is string && data.appId.size() <= 128
+        && data.userId is string && data.userId.size() <= 128
+        && data.userEmail is string && data.userEmail.size() <= 200
+        && data.commentText is string && data.commentText.size() >= 1 && data.commentText.size() <= 1000;
+    }
+  }
+}

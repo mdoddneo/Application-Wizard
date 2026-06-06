@@ -1,0 +1,52 @@
+{
+  "entities": {
+    "App": {
+      "title": "BuiltApp",
+      "description": "An interactive sandboxed application created by the AI engine.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "The unique ID of the application document" },
+        "title": { "type": "string", "description": "Name of the built application" },
+        "description": { "type": "string", "description": "Brief summary of what the app does" },
+        "prompt": { "type": "string", "description": "The prompt or instruction used to generate the app" },
+        "code": { "type": "string", "description": "The complete self-contained HTML/JS/CSS code bundle" },
+        "platform": { "type": "string", "enum": ["ios", "android", "cross-platform"], "description": "The target system wrapper style" },
+        "category": { "type": "string", "description": "Aesthetic or functional category of the app" },
+        "icon": { "type": "string", "description": "Lucide icon string name used to represent the app" },
+        "creatorId": { "type": "string", "description": "Firebase UID or guest session ID of the creator" },
+        "creatorEmail": { "type": "string", "description": "Primary email of the creator or guest indicator" },
+        "published": { "type": "boolean", "description": "Whether the app is shared with the community marketplace" },
+        "likesCount": { "type": "number", "description": "Total number of likes accrued by the app" },
+        "viewsCount": { "type": "number", "description": "Total number of views/runs" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "The date when the app was initially crafted" },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "The date of the last incremental improvement" },
+        "features": { "type": "array", "description": "Key interactive features generated for the app" }
+      },
+      "required": ["id", "title", "description", "prompt", "code", "creatorId", "published", "createdAt", "updatedAt"]
+    },
+    "Comment": {
+      "title": "AppComment",
+      "description": "A community feedback comment on a published application.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique comment ID" },
+        "appId": { "type": "string", "description": "Parent app document ID" },
+        "userId": { "type": "string", "description": "User ID of the commenter" },
+        "userEmail": { "type": "string", "description": "User email of the commenter" },
+        "commentText": { "type": "string", "description": "The text feedback content" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Timestamp of comment creation" }
+      },
+      "required": ["id", "appId", "userId", "userEmail", "commentText", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/apps/{appId}": {
+      "schema": "App",
+      "description": "Primary database collection storing all user-crafted and published mobile responsive web apps."
+    },
+    "/apps/{appId}/comments/{commentId}": {
+      "schema": "Comment",
+      "description": "Sub-collection under each custom app storing community reviews and feedback."
+    }
+  }
+}
